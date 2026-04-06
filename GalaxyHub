@@ -727,6 +727,108 @@ buttons["autoright"]  = MakeMainBtnV2("Auto Right [C]", 0, RB_X, 0, RY3, BW, BH)
 buttons["float"]      = MakeMainBtnV2("Float [T]",      0, RB_X, 0, RY4, BW, BH)
 buttons["TP [Right]"] = MakeMainBtnV2("TP [Right]",     0, RB_X, 0, RY5, BW, BH)
 buttons["TP Down"]     = MakeMainBtnV2("TP Down",        0, RB_X, 0, RY6, BW, BH)
+
+-- INSTANT STEAL BUTTON (Pulse Grabber Logic)
+local GRAB_RADIUS = 11
+local BASE_COOLDOWN = 0.33
+local instantStealActive = false
+local LastActionTime = 0
+local allAnimalsCache = {}
+local hrpCache = nil
+
+local function getHRPCache()
+	if hrpCache and hrpCache.Parent then return hrpCache end
+	local char = player.Character
+	if char then hrpCache = char:FindFirstChild("HumanoidRootPart") end
+	return hrpCache
+end
+
+local function rebuildAnimalCache()
+	allAnimalsCache = {}
+	local plots = Workspace:FindFirstChild("Plots")
+	if not plots then return end
+	for _, plot in ipairs(plots:GetChildren()) do
+		local podiums = plot:FindFirstChild("AnimalPodiums")
+		if podiums then
+			for _, podium in ipairs(podiums:GetChildren()) do
+				local spawn = podium:FindFirstChild("Base") and podium.Base:FindFirstChild("Spawn")
+				if spawn then
+					local prompt = spawn.PromptAttachment:FindFirstChildOfClass("ProximityPrompt")
+					if prompt then
+						table.insert(allAnimalsCache, {worldPosition = podium:GetPivot().Position, prompt = prompt})
+					end
+				end
+			end
+		end
+	end
+end
+
+local function getNearestAnimal()
+	local hrp = getHRPCache()
+	if not hrp then return nil end
+	local pos = hrp.Position
+	local nearest, minDist = nil, math.huge
+	for _, a in ipairs(allAnimalsCache) do
+		local dist = (pos - a.worldPosition).Magnitude
+		if dist < minDist and dist <= GRAB_RADIUS and a.prompt then
+			minDist = dist
+			nearest = a
+		end
+	end
+	return nearest
+end
+
+local function tryInstantSteal(prompt)
+	if not prompt or (os.clock() - LastActionTime) < BASE_COOLDOWN then return end
+	LastActionTime = os.clock()
+	task.spawn(function()
+		pcall(function()
+			prompt.HoldDuration = 0
+			prompt:InputHoldBegin()
+			task.wait(0.007)
+			prompt:InputHoldEnd()
+			prompt:InputTrigger()
+			task.wait(0.007)
+			prompt:InputTrigger()
+		end)
+	end)
+end
+
+-- Instant Steal Button
+local RY7 = RY6 + BH + GAP
+buttons["Instant Steal"] = MakeMainBtnV2("Instant Steal", 0, RB_X, 0, RY7, BW, BH)
+
+-- Rebuild cache periodically
+task.spawn(function()
+	task.wait(1.2)
+	rebuildAnimalCache()
+	while true do
+		task.wait(13)
+		rebuildAnimalCache()
+	end
+end)
+
+-- Instant Steal loop when active
+task.spawn(function()
+	while true do
+		task.wait(0.03)
+		if instantStealActive then
+			local animal = getNearestAnimal()
+			if animal and animal.prompt then
+				tryInstantSteal(animal.prompt)
+			end
+		end
+	end
+end)
+
+buttons["Instant Steal"].MouseButton1Click:Connect(function()
+	instantStealActive = not instantStealActive
+	if instantStealActive then
+		updateButtonState(buttons["Instant Steal"], true, "Instant Steal [ON]", "Instant Steal")
+	else
+		updateButtonState(buttons["Instant Steal"], false, "", "Instant Steal")
+	end
+end)
 -- ANIMATED GRADIENT TITLE
 local TitleBar = Instance.new("TextButton", Lib)
 TitleBar.Size = UDim2.new(0, 260, 0, 42)
@@ -951,7 +1053,7 @@ SettingsLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 SettingsLabel.Font = Enum.Font.GothamBold
 SettingsLabel.TextSize = 10
 
-local settingsItems = {"Anti Fling","Spin Bot","Anti Ragdoll","Auto Steal","Steal Speed","Unwalk","Jump"}
+local settingsItems = {"Anti Fling","Spin Bot","Anti Ragdoll","Steal Speed","Unwalk","Jump"}
 local settingsToggles = {}
 for _, name in pairs(settingsItems) do
 	local item = Instance.new("TextButton", SContainer)
@@ -999,8 +1101,7 @@ for _, name in pairs(settingsItems) do
 		toggle(function() unwalkActive=true; startUnwalk() end, function() unwalkActive=false; stopUnwalk() end, "Unwalk")
 	elseif name == "Steal Speed" then
 		toggle(function() stealSpeedActive=true; startStealSpeed() end, function() stealSpeedActive=false; stopStealSpeed() end, "StealSpeed")
-	elseif name == "Auto Steal" then
-		toggle(function() stealActive=true; initSteal() end, function() stealActive=false; stopStealLoop() end, "AutoSteal")
+
 	elseif name == "Anti Fling" then
 		toggle(function() antiFlingActive=true; startAntiFling() end, function() antiFlingActive=false; stopAntiFling() end, "AntiFling")
 	elseif name == "Jump" then
@@ -1134,9 +1235,9 @@ end)
 UIS.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-	
+
 	local key = input.KeyCode
-	
+
 	-- X - Aimbot
 	if key == Enum.KeyCode.X then
 		batAimbotActive = not batAimbotActive
@@ -1147,21 +1248,21 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
 			updateButtonState(buttons["Aimbot [X]"], false, "", "Aimbot [X]")
 			stopBatAimbot()
 		end
-	-- Z - Auto Left
+		-- Z - Auto Left
 	elseif key == Enum.KeyCode.Z then
 		if patrolMode == "left" or waitingForCountdownLeft then
 			stopMovement(buttons["autoright"], buttons["autoleft"])
 		else
 			startMovement("left", buttons["autoleft"])
 		end
-	-- C - Auto Right
+		-- C - Auto Right
 	elseif key == Enum.KeyCode.C then
 		if patrolMode == "right" or waitingForCountdownRight then
 			stopMovement(buttons["autoright"], buttons["autoleft"])
 		else
 			startMovement("right", buttons["autoright"])
 		end
-	-- T - Float
+		-- T - Float
 	elseif key == Enum.KeyCode.T then
 		floating = not floating
 		if floating then
@@ -1174,7 +1275,7 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
 				if root then root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z) end
 			end
 		end
-	-- V - TP Right
+		-- V - TP Right
 	elseif key == Enum.KeyCode.V then
 		ragdollAutoActive = true
 		updateButtonState(buttons["TP [Right]"], true, "TP [Right] [ON]", "TP [Right]")
@@ -1183,7 +1284,7 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
 			doTPRight(); task.wait(0.2)
 			if patrolMode ~= "right" then startMovement("right", buttons["autoright"]) end
 		end)
-	-- U - Menu
+		-- U - Menu
 	elseif key == Enum.KeyCode.U then
 		SettingsPanel.Visible = not SettingsPanel.Visible
 		tauntButtons["MENU"].BackgroundColor3 = SettingsPanel.Visible and C_ACTIVE or C_BG
@@ -1247,11 +1348,11 @@ task.spawn(function()
 		elseif name == "Anti Ragdoll" then configKey = "AntiRagdoll"
 		elseif name == "Unwalk" then configKey = "Unwalk"
 		elseif name == "Steal Speed" then configKey = "StealSpeed"
-		elseif name == "Auto Steal" then configKey = "AutoSteal"
+
 		elseif name == "Anti Fling" then configKey = "AntiFling"
 		elseif name == "Jump" then configKey = "InfinityJump"
 		end
-		
+
 		if configKey and Config[configKey] then
 			local dot = item:FindFirstChild("StatusDot")
 			if dot then
@@ -1261,7 +1362,7 @@ task.spawn(function()
 				elseif name == "Anti Ragdoll" then antiRagdollActive=true; startAntiRagdoll()
 				elseif name == "Unwalk" then unwalkActive=true; startUnwalk()
 				elseif name == "Steal Speed" then stealSpeedActive=true; startStealSpeed()
-				elseif name == "Auto Steal" then stealActive=true; initSteal()
+		
 				elseif name == "Anti Fling" then antiFlingActive=true; startAntiFling()
 				elseif name == "Jump" then _G.infinityJumpEnabled = true
 				end
