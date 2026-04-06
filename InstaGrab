@@ -11,7 +11,6 @@ local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 
 local player = Players.LocalPlayer
-local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
 -- ====================== SETTINGS ======================
 local GRAB_RADIUS = 11
@@ -27,7 +26,7 @@ local ultraModeEnabled = false
 
 -- Saved Original Settings
 local originalSettings = {}
-local originalDescendants = {}  -- pentru a restaura părul și alte accesorii
+local originalDescendants = {}
 
 local function saveOriginalSettings()
     originalSettings = {
@@ -67,7 +66,7 @@ local function applyAntiLag(enabled)
 
         for _, v in ipairs(Workspace:GetDescendants()) do
             if (v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("UnionOperation")) then
-                if not v:FindFirstAncestorWhichIsA("Accessory") then  -- protejează accesoriile (păr etc.)
+                if not v:FindFirstAncestorWhichIsA("Accessory") then
                     v.Material = Enum.Material.Plastic
                     v.Reflectance = 0
                     v.CastShadow = false
@@ -91,7 +90,6 @@ local function applyUltraMode(enabled)
                 v.Enabled = false
             end
             
-            -- Nu distruge părul și alte accesorii importante
             if (v:IsA("Accessory") or v:IsA("MeshPartAccessory")) and not v.Name:lower():find("hair") then
                 pcall(function()
                     table.insert(originalDescendants, {obj = v, Parent = v.Parent})
@@ -100,12 +98,9 @@ local function applyUltraMode(enabled)
             end
         end
     else
-        -- Restore Ultra Mode
         for _, data in ipairs(originalDescendants) do
             if data.obj and data.obj.Parent == nil then
-                pcall(function()
-                    data.obj.Parent = data.Parent
-                end)
+                pcall(function() data.obj.Parent = data.Parent end)
             elseif data.obj and data.Enabled ~= nil then
                 data.obj.Enabled = data.Enabled
             end
@@ -115,7 +110,7 @@ local function applyUltraMode(enabled)
     end
 end
 
--- ====================== GUI (Alb-Negru Curat) ======================
+-- ====================== GUI ======================
 if CoreGui:FindFirstChild("PulseInstaGrab") then 
     CoreGui.PulseInstaGrab:Destroy() 
 end
@@ -126,11 +121,11 @@ sg.ResetOnSpawn = false
 sg.Parent = CoreGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = isMobile and UDim2.new(0.9, 0, 0, 295) or UDim2.new(0, 310, 0, 285)
+mainFrame.Size = UDim2.new(0, 280, 0, 260)
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-mainFrame.BackgroundTransparency = 0.4
+mainFrame.BackgroundTransparency = 0.45        -- 0.45
 mainFrame.Active = true
 mainFrame.Draggable = true
 mainFrame.Parent = sg
@@ -140,15 +135,15 @@ Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 14)
 local mainStroke = Instance.new("UIStroke", mainFrame)
 mainStroke.Thickness = 1.5
 mainStroke.Color = Color3.fromRGB(255, 255, 255)
-mainStroke.Transparency = 0.4
+mainStroke.Transparency = 0.5                  -- 0.5
 
 -- Title
 local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 50)
-title.BackgroundTransparency = 4
+title.Size = UDim2.new(1, 0, 0, 46)
+title.BackgroundTransparency = 1
 title.Text = "PULSE GRABBER"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = isMobile and 22 or 26
+title.TextSize = 24
 title.Font = Enum.Font.GothamBlack
 title.Parent = mainFrame
 
@@ -157,25 +152,25 @@ titleStroke.Thickness = 0.8
 titleStroke.Color = Color3.fromRGB(200, 200, 200)
 
 local subtitle = Instance.new("TextLabel", mainFrame)
-subtitle.Size = UDim2.new(1, 0, 0, 18)
-subtitle.Position = UDim2.new(0, 0, 0, 46)
+subtitle.Size = UDim2.new(1, 0, 0, 16)
+subtitle.Position = UDim2.new(0, 0, 0, 42)
 subtitle.BackgroundTransparency = 1
 subtitle.Text = "Instant Grab • Auto Spam • Low Lag"
 subtitle.TextColor3 = Color3.fromRGB(180, 180, 180)
-subtitle.TextSize = 13
+subtitle.TextSize = 12.5
 subtitle.Font = Enum.Font.Gotham
 subtitle.Parent = mainFrame
 
 -- Small Buttons
 local function createSmallButton(text, xPos)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.46, 0, 0, 38)
-    btn.Position = UDim2.new(xPos, 0, 0, 112)
+    btn.Size = UDim2.new(0.46, 0, 0, 36)
+    btn.Position = UDim2.new(xPos, 0, 0, 105)
     btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    btn.BackgroundTransparency = 0.1
+    btn.BackgroundTransparency = 0.45               -- 0.45
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 13.5
+    btn.TextSize = 13
     btn.Font = Enum.Font.GothamSemibold
     btn.Parent = mainFrame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
@@ -183,20 +178,21 @@ local function createSmallButton(text, xPos)
     local s = Instance.new("UIStroke", btn)
     s.Thickness = 1
     s.Color = Color3.fromRGB(255, 255, 255)
-    s.Transparency = 0.75
+    s.Transparency = 0.5                            -- 0.5
     return btn
 end
 
 local antiLagBtn = createSmallButton("ANTI LAG: OFF", 0.04)
 local ultraBtn   = createSmallButton("ULTRA MODE: OFF", 0.52)
 
--- Progress Bar
-local progressFrame = Instance.new("Frame", sg)
-progressFrame.Size = UDim2.new(0, 285, 0, 24)
-progressFrame.Position = UDim2.new(0.5, 0, 0.68, 0)
+-- Progress Bar (exact sub frame, cu mică distanțare)
+local progressFrame = Instance.new("Frame")
+progressFrame.Size = UDim2.new(0, 255, 0, 22)
+progressFrame.Position = UDim2.new(0.5, 0, 1, 12)   -- exact sub mainFrame + 12 pixeli distanță
 progressFrame.AnchorPoint = Vector2.new(0.5, 0)
 progressFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-progressFrame.BackgroundTransparency = 0.3
+progressFrame.BackgroundTransparency = 0.4           -- 0.4
+progressFrame.Parent = sg
 Instance.new("UICorner", progressFrame).CornerRadius = UDim.new(0, 12)
 
 local progressBar = Instance.new("Frame", progressFrame)
@@ -209,41 +205,41 @@ progressText.Size = UDim2.new(1,0,1,0)
 progressText.BackgroundTransparency = 1
 progressText.Text = "0%"
 progressText.TextColor3 = Color3.fromRGB(255,255,255)
-progressText.TextSize = 14
+progressText.TextSize = 13.5
 progressText.Font = Enum.Font.GothamBold
 
 -- Main Buttons
 local function createMainButton(yPos, text, color)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.88,0,0,48)
-    btn.Position = UDim2.new(0.5,0,0,yPos)
-    btn.AnchorPoint = Vector2.new(0.5,0)
+    btn.Size = UDim2.new(0.88, 0, 0, 44)
+    btn.Position = UDim2.new(0.5, 0, 0, yPos)
+    btn.AnchorPoint = Vector2.new(0.5, 0)
     btn.BackgroundColor3 = color
-    btn.BackgroundTransparency = 0.08
+    btn.BackgroundTransparency = 0.45               -- 0.45
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.TextSize = 16.5
+    btn.TextSize = 15.5
     btn.Font = Enum.Font.GothamBold
     btn.Parent = mainFrame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
     
     local s = Instance.new("UIStroke", btn)
-    s.Thickness = 1.3
+    s.Thickness = 1.25
     s.Color = Color3.fromRGB(255, 255, 255)
-    s.Transparency = 0.65
+    s.Transparency = 0.5                            -- 0.5
     return btn
 end
 
-local stealButton = createMainButton(168, "INSTANT STEAL", Color3.fromRGB(40, 40, 40))
-local autoButton  = createMainButton(223, "AUTO SPAM: OFF", Color3.fromRGB(30, 30, 30))
+local stealButton = createMainButton(150, "INSTANT STEAL", Color3.fromRGB(40, 40, 40))
+local autoButton  = createMainButton(200, "AUTO SPAM: OFF", Color3.fromRGB(30, 30, 30))
 
 local statusLabel = Instance.new("TextLabel", mainFrame)
-statusLabel.Size = UDim2.new(1,-30,0,22)
-statusLabel.Position = UDim2.new(0,15,1,-30)
+statusLabel.Size = UDim2.new(1, -30, 0, 20)
+statusLabel.Position = UDim2.new(0, 15, 1, -28)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "STATUS: IDLE"
 statusLabel.TextColor3 = Color3.fromRGB(170,170,170)
-statusLabel.TextSize = 13.5
+statusLabel.TextSize = 13
 statusLabel.Font = Enum.Font.Gotham
 
 -- ====================== CORE LOGIC ======================
@@ -372,4 +368,4 @@ task.spawn(function()
     end
 end)
 
-print("Pulse Insta Grab - Tematica Alb-Negru | Părul protejat | Restore complet")
+print("Pulse Insta Grab - Progress sub frame + transparențe ajustate")
